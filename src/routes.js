@@ -1,6 +1,9 @@
 const express = require("express");
 const mysql = require("mysql");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const con = require("./database");
+const middleware = require("./middleware");
 
 const router = express.Router();
 
@@ -20,10 +23,95 @@ router.get("/users", (req, res) => {
   });
 });
 
+//// LOGIN (REGISTER)
+router.post("/login", middleware.validateLogin, (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
+  con.query(`SELECT * FROM users WHERE email = '${email}'`, (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(400).json(err);
+    } else if (result.length !== 1) {
+      return res.status(400).json(err);
+    } else if (result[0].password === null) {
+      bcrypt.hash(password, 10, (err, hash) => {
+        if (err) {
+          console.log(err);
+          return res.status(400).json(err);
+        } else {
+          con.query(
+            `UPDATE users SET password = '${hash}' WHERE email = '${email}'`,
+            (err, result) => {
+              if (err) {
+                console.log(err);
+                return res.status(400).json(err);
+              } else {
+                con.query(
+                  `SELECT id, email FROM users WHERE password = '${hash}'`,
+                  (err, result) => {
+                    if (err) {
+                      console.log(err);
+                      return res.status(400).json(err);
+                    } else {
+                      const token = jwt.sign(
+                        {
+                          userId: result[0].id,
+                          userEmail: result[0].email,
+                        },
+                        process.env.SECRET_KEY,
+                        {
+                          expiresIn: "1d",
+                        }
+                      );
+                      return res.status(200).json({
+                        msg: "Successfully Registered",
+                        token,
+                        userData: {
+                          userId: result[0].id,
+                          userEmail: result[0].email,
+                        },
+                      });
+                    }
+                  }
+                );
+              }
+            }
+          );
+        }
+      });
+    } else {
+      bcrypt.compare(password, result[0].password, (bErr, bResult) => {
+        if (bErr || !bResult) {
+          return res.status(400).json(err);
+        } else if (bResult) {
+          const token = jwt.sign(
+            {
+              userId: result[0].id,
+              userEmail: result[0].email,
+            },
+            process.env.SECRET_KEY,
+            {
+              expiresIn: "1d",
+            }
+          );
+          return res.status(200).json({
+            msg: "Successfully Logged In",
+            token,
+            userData: {
+              userId: result[0].id,
+              userEmail: result[0].email,
+            },
+          });
+        }
+      });
+    }
+  });
+});
+
 //// STUDENTS PAGE
 // GET
 router.get("/students", (req, res) => {
-  con.query(`SELECT * FROM students`, (err, result) => {
+  con.query(`SELECT * FROM students`, middleware.isLoggedIn, (err, result) => {
     if (err) {
       console.log(err);
       return res.status(400).json(err);
@@ -34,7 +122,7 @@ router.get("/students", (req, res) => {
 });
 
 // POST
-router.post("/add-student", (req, res) => {
+router.post("/add-student", middleware.isLoggedIn, (req, res) => {
   const name = req.body.name;
   const surname = req.body.surname;
   if (name && surname) {
@@ -67,7 +155,7 @@ router.post("/add-student", (req, res) => {
 });
 
 // DELETE
-router.delete("/students", (req, res) => {
+router.delete("/students", middleware.isLoggedIn, (req, res) => {
   const id = req.body.id;
   if (id) {
     con.query(`SELECT * FROM students WHERE id = '${id}'`, (err, result) => {
@@ -94,7 +182,7 @@ router.delete("/students", (req, res) => {
 
 //// LECTURERS PAGE
 // SHOW ALL LECTURERS
-router.get("/lecturers", (req, res) => {
+router.get("/lecturers", middleware.isLoggedIn, (req, res) => {
   con.query(`SELECT id, name, surname FROM users`, (err, result) => {
     if (err) {
       console.log(err);
@@ -106,7 +194,7 @@ router.get("/lecturers", (req, res) => {
 });
 
 // SHOW SPECIFIC LECTURER
-router.get("/lecturers/:lecturer_id", (req, res) => {
+router.get("/lecturers/:lecturer_id", middleware.isLoggedIn, (req, res) => {
   const lecturer_id = req.params.lecturer_id;
   if (lecturer_id) {
     con.query(
@@ -128,7 +216,7 @@ router.get("/lecturers/:lecturer_id", (req, res) => {
 });
 
 // ADD LECTURER
-router.post("/add-lecturer", (req, res) => {
+router.post("/add-lecturer", middleware.isLoggedIn, (req, res) => {
   const lecturer_name = req.body.lecturer_name;
   const lecturer_surname = req.body.lecturer_surname;
   const lecturer_email = req.body.lecturer_email;
@@ -162,7 +250,7 @@ router.post("/add-lecturer", (req, res) => {
 });
 
 // DELETE LECTURER
-router.delete("/lecturers", (req, res) => {
+router.delete("/lecturers", middleware.isLoggedIn, (req, res) => {
   const lecturer_id = req.body.lecturer_id;
   if (lecturer_id) {
     con.query(
