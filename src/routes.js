@@ -1,5 +1,7 @@
 const express = require("express");
 const mysql = require("mysql");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const con = require("./database");
 
 const router = express.Router();
@@ -16,6 +18,91 @@ router.get("/users", (req, res) => {
       return res.status(400).json(err);
     } else {
       return res.status(200).json(result);
+    }
+  });
+});
+
+//// LOGIN (REGISTER)
+router.post("/login", (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
+  con.query(`SELECT * FROM users WHERE email = '${email}'`, (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(400).json(err);
+    } else if (result.length !== 1) {
+      return res.status(400).json(err);
+    } else if (result[0].password === null) {
+      bcrypt.hash(password, 10, (err, hash) => {
+        if (err) {
+          console.log(err);
+          return res.status(400).json(err);
+        } else {
+          con.query(
+            `UPDATE users SET password = '${hash}' WHERE email = '${email}'`,
+            (err, result) => {
+              if (err) {
+                console.log(err);
+                return res.status(400).json(err);
+              } else {
+                con.query(
+                  `SELECT id, email FROM users WHERE password = '${hash}'`,
+                  (err, result) => {
+                    if (err) {
+                      console.log(err);
+                      return res.status(400).json(err);
+                    } else {
+                      const token = jwt.sign(
+                        {
+                          userId: result[0].id,
+                          userEmail: result[0].email,
+                        },
+                        process.env.SECRET_KEY,
+                        {
+                          expiresIn: "1d",
+                        }
+                      );
+                      return res.status(200).json({
+                        msg: "Successfully Registered",
+                        token,
+                        userData: {
+                          userId: result[0].id,
+                          userEmail: result[0].email,
+                        },
+                      });
+                    }
+                  }
+                );
+              }
+            }
+          );
+        }
+      });
+    } else {
+      bcrypt.compare(password, result[0].password, (bErr, bResult) => {
+        if (bErr || !bResult) {
+          return res.status(400).json(err);
+        } else if (bResult) {
+          const token = jwt.sign(
+            {
+              userId: result[0].id,
+              userEmail: result[0].email,
+            },
+            process.env.SECRET_KEY,
+            {
+              expiresIn: "1d",
+            }
+          );
+          return res.status(200).json({
+            msg: "Successfully Logged In",
+            token,
+            userData: {
+              userId: result[0].id,
+              userEmail: result[0].email,
+            },
+          });
+        }
+      });
     }
   });
 });
