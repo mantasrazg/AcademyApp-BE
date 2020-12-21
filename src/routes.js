@@ -281,4 +281,118 @@ router.delete("/lecturers", middleware.isLoggedIn, (req, res) => {
   }
 });
 
+//// COURSES PAGE
+// SHOW ALL COURSES
+router.get("/courses", (req, res) => {
+  con.query(`SELECT * FROM courses`, (err, result) => {
+    if (err) {
+      console.log(err);
+      return res.status(400).json(err);
+    } else {
+      return res.status(200).json(result);
+    }
+  });
+});
+
+// SHOW SPECIFIC COURSE
+router.get("/courses/:course_id", (req, res) => {
+  const course_id = req.params.course_id;
+  if (course_id) {
+    con.query(
+      `SELECT * FROM courses WHERE id = '${course_id}'`,
+      (err, result) => {
+        if (err) {
+          console.log(err);
+          return res.status(400).json(err);
+        } else if (result.length !== 1) {
+          return res.status(400).json(err);
+        } else {
+          return res.status(200).json(result);
+        }
+      }
+    );
+  } else {
+    return res.status(400).json(err);
+  }
+});
+
+// ADD COURSE
+router.post("/add-course", (req, res) => {
+  const course_name = req.body.course_name;
+  const course_description = req.body.course_description;
+  const lecturer_id = req.body.lecturer_id;
+  const group_id = req.body.group_id;
+  if (course_name && course_description && lecturer_id && group_id) {
+    con.query(
+      `SELECT * FROM courses WHERE name = '${course_name}'`,
+      (err, result) => {
+        if (err) {
+          console.log(err);
+          return res.status(400).json(err);
+        } else if (result.length !== 0) {
+          return res.status(400).json(err);
+        } else {
+          con.query(
+            `SELECT * FROM users WHERE id = '${lecturer_id}'`,
+            (err, result) => {
+              if (err) {
+                console.log(err);
+                return res.status(400).json(err);
+              } else if (result.length !== 1) {
+                return res.status(400).json(err);
+              } else {
+                con.query(
+                  `INSERT INTO courses (name, description, lecturer_id, group_id) VALUES ('${course_name}', '${course_description}', '${lecturer_id}', '${group_id}')`,
+                  (err, result) => {
+                    if (err) {
+                      console.log(err);
+                      return res.status(400).json(err);
+                    } else {
+                      return res.status(200).json(result);
+                    }
+                  }
+                );
+              }
+            }
+          );
+        }
+      }
+    );
+  } else {
+    return res.status(400).json(err);
+  }
+});
+
+// DELETE COURSE
+router.delete("/courses", (req, res) => {
+  const course_id = req.body.course_id;
+  if (course_id) {
+    con.query(
+      `SELECT * FROM courses WHERE id = '${course_id}'`,
+      (err, result) => {
+        if (err) {
+          console.log(err);
+          return res.status(400).json(err);
+        } else if (result.length !== 1) {
+          return res.status(400).json(err);
+        } else {
+          con.query(
+            `DELETE FROM courses WHERE id = '${course_id}'`,
+            (err, result) => {
+              if (err) {
+                console.log(err);
+                return res.status(400).json(err);
+              } else {
+                return res.status(200).json(result);
+              }
+            }
+          );
+        }
+      }
+    );
+  } else {
+    return res.status(400).json(err);
+  }
+});
+
 module.exports = router;
