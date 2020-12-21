@@ -7,22 +7,6 @@ const middleware = require("./middleware");
 
 const router = express.Router();
 
-//// BASIC GET REQUESTS
-router.get("/", (req, res) => {
-  res.send("Boilerplate is wokring!");
-});
-
-router.get("/users", (req, res) => {
-  con.query(`SELECT * FROM users`, (err, result) => {
-    if (err) {
-      console.log(err);
-      return res.status(400).json(err);
-    } else {
-      return res.status(200).json(result);
-    }
-  });
-});
-
 //// LOGIN (REGISTER)
 router.post("/login", middleware.validateLogin, (req, res) => {
   const email = req.body.email;
@@ -109,9 +93,9 @@ router.post("/login", middleware.validateLogin, (req, res) => {
 });
 
 //// STUDENTS PAGE
-// GET
-router.get("/students", (req, res) => {
-  con.query(`SELECT * FROM students`, middleware.isLoggedIn, (err, result) => {
+// SHOW ALL STUDENTS
+router.get("/students", middleware.isLoggedIn, (req, res) => {
+  con.query(`SELECT * FROM students`, (err, result) => {
     if (err) {
       console.log(err);
       return res.status(400).json(err);
@@ -121,7 +105,7 @@ router.get("/students", (req, res) => {
   });
 });
 
-// POST
+// ADD STUDENT
 router.post("/add-student", middleware.isLoggedIn, (req, res) => {
   const name = req.body.name;
   const surname = req.body.surname;
@@ -154,7 +138,7 @@ router.post("/add-student", middleware.isLoggedIn, (req, res) => {
   }
 });
 
-// DELETE
+// DELETE STUDENT
 router.delete("/students", middleware.isLoggedIn, (req, res) => {
   const id = req.body.id;
   if (id) {
@@ -283,7 +267,7 @@ router.delete("/lecturers", middleware.isLoggedIn, (req, res) => {
 
 //// COURSES PAGE
 // SHOW ALL COURSES
-router.get("/courses", (req, res) => {
+router.get("/courses", middleware.isLoggedIn, (req, res) => {
   con.query(`SELECT * FROM courses`, (err, result) => {
     if (err) {
       console.log(err);
@@ -295,7 +279,7 @@ router.get("/courses", (req, res) => {
 });
 
 // SHOW SPECIFIC COURSE
-router.get("/courses/:course_id", (req, res) => {
+router.get("/courses/:course_id", middleware.isLoggedIn, (req, res) => {
   const course_id = req.params.course_id;
   if (course_id) {
     con.query(
@@ -317,7 +301,7 @@ router.get("/courses/:course_id", (req, res) => {
 });
 
 // ADD COURSE
-router.post("/add-course", (req, res) => {
+router.post("/add-course", middleware.isLoggedIn, (req, res) => {
   const course_name = req.body.course_name;
   const course_description = req.body.course_description;
   const lecturer_id = req.body.lecturer_id;
@@ -364,7 +348,7 @@ router.post("/add-course", (req, res) => {
 });
 
 // DELETE COURSE
-router.delete("/courses", (req, res) => {
+router.delete("/courses", middleware.isLoggedIn, (req, res) => {
   const course_id = req.body.course_id;
   if (course_id) {
     con.query(
